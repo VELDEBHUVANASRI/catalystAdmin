@@ -52,38 +52,6 @@ const ActiveUsersPage = () => {
           joinedDate: user.joinedDate ? new Date(user.joinedDate).toLocaleDateString() : '',
           lastActive: user.lastActive ? new Date(user.lastActive).toLocaleDateString() : '',
         }));
-
-        // Apply client-side filtering
-        let filteredData = formattedUsers;
-        
-        if (emailFilter?.trim()) {
-          const emailSearch = emailFilter.trim().toLowerCase();
-          filteredData = filteredData.filter(user => 
-            user.email.toLowerCase().includes(emailSearch)
-          );
-        }
-        
-        if (nameFilter?.trim()) {
-          const nameSearch = nameFilter.trim().toLowerCase();
-          filteredData = filteredData.filter(user => 
-            user.fullName.toLowerCase().includes(nameSearch)
-          );
-        }
-        
-        if (dateFrom || dateTo) {
-          filteredData = filteredData.filter(user => {
-            const userDate = new Date(user.joinedDate);
-            if (dateFrom && userDate < new Date(dateFrom)) return false;
-            if (dateTo) {
-              const toDate = new Date(dateTo);
-              toDate.setHours(23, 59, 59, 999);
-              if (userDate > toDate) return false;
-            }
-            return true;
-          });
-        }
-        
-        setUsers(filteredData);
         setUsers(formattedUsers);
         setError('');
       } else {
@@ -100,7 +68,7 @@ const ActiveUsersPage = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers, refreshTrigger]);
+  }, [fetchUsers, refreshTrigger, emailFilter, nameFilter, dateFrom, dateTo]);
 
   const refreshUsers = () => {
     setRefreshTrigger(prev => prev + 1);

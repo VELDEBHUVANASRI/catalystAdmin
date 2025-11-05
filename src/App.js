@@ -24,8 +24,9 @@ import ServiceRejectedDetails from './pages/Service/ServiceRejectedDetails';
 import ServicePendingDetails from './pages/Service/ServicePendingDetails';
 
 // User Pages
+import User from './pages/User/User';
 import ActiveUsersPage from './pages/User/ActiveUsersPage';
-import ActiveUserDetailsPage from './pages/User/ActiveUserDetailsPage';
+import UserDetailsPage from './pages/User/UserDetailsPage';
 import UserRegistrationPage from './pages/User/UserRegistrationPage';
 
 // Finance Pages
@@ -43,7 +44,17 @@ import Tickets from './pages/Tickets/Tickets';
 import VendorTickets from './pages/Tickets/VendorTickets';
 import UserTickets from './pages/Tickets/UserTickets';
 
-// Placeholder UI removed; use specific pages for stubs when needed
+// Simple placeholder components
+const PlaceholderPage = ({ title }) => (
+  <div style={{ padding: '40px' }}>
+    <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '16px' }}>
+      {title}
+    </h1>
+    <p style={{ color: '#6b7280', fontSize: '14px' }}>
+      This page is under development. Coming soon...
+    </p>
+  </div>
+);
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -198,6 +209,17 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout>
+                <User />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/user/active"
+          element={
+            <ProtectedRoute>
+              <Layout>
                 <ActiveUsersPage />
               </Layout>
             </ProtectedRoute>
@@ -209,13 +231,11 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout>
-                <ActiveUserDetailsPage />
+                <UserDetailsPage />
               </Layout>
             </ProtectedRoute>
           }
         />
-
-        
 
         <Route
           path="/user/create"

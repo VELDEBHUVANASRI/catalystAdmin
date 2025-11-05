@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FiLogOut, FiMenu, FiSearch } from 'react-icons/fi';
 import './TopBar.css';
 
 const TopBar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearch = (e) => {
@@ -32,7 +31,7 @@ const TopBar = ({ toggleSidebar }) => {
           <FiSearch className="search-icon" />
           <input
             type="text"
-            placeholder={location.pathname.startsWith('/user') ? 'Search users…' : 'Search…'}
+            placeholder="Search…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={handleSearch}

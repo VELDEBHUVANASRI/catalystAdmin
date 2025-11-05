@@ -3,13 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { MdStore } from 'react-icons/md';
 import { FiArrowLeft, FiCheck, FiDownload, FiExternalLink, FiLoader, FiX } from 'react-icons/fi';
 import Toast from '../../components/Toast/Toast';
-import DocumentPreview from '../../components/DocumentPreview/DocumentPreview';
 import './VendorRequestDetails.css';
-import { buildDataUrl, getDocument } from '../../lib/vendorDocs';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
 
-
+const buildDataUrl = (document) => {
+  if (!document?.data) {
+    return null;
+  }
+  const type = document.type ? document.type.trim() : 'application/octet-stream';
+  return `data:${type};base64,${document.data}`;
+};
 
 const VendorRequestDetails = () => {
   const navigate = useNavigate();
@@ -28,30 +32,6 @@ const VendorRequestDetails = () => {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [activePreview, setActivePreview] = useState(null);
-
-  const closePreview = () => {
-    setActivePreview(null);
-  };
-
-  const downloadDocument = useCallback((doc, fallbackName) => {
-    if (!doc) return;
-    const url = buildDataUrl(doc);
-    if (!url) return;
-
-    // use window.document to avoid shadowing the `document` param
-    const link = window.document.createElement('a');
-    link.href = url;
-    link.download = doc?.name || fallbackName || 'document';
-    window.document.body.appendChild(link);
-    link.click();
-    window.document.body.removeChild(link);
-  }, []);
-
-  const openDocument = useCallback((document, title) => {
-    if (!document) return;
-    setActivePreview({ document, title });
-  }, []);
 
   const statusLabel = vendor?.status ? vendor.status.charAt(0).toUpperCase() + vendor.status.slice(1) : 'Pending';
 
@@ -90,26 +70,14 @@ const VendorRequestDetails = () => {
     fetchVendor();
   }, [fetchVendor]);
 
-  const documents = useMemo(() => {
-    return [
-      {
-        key: 'pan',
-        title: 'PAN Card',
-        // prefer multiple possible keys coming from different APIs
-        document: getDocument(vendor, ['panCard', 'panDocument', 'pan']),
-      },
-      {
-        key: 'registration',
-        title: 'Registration / Ownership Document',
-        document: getDocument(vendor, ['registrationDoc', 'registrationDocument', 'registration']),
-      },
-      {
-        key: 'gst',
-        title: 'GST / VAT Certificate',
-        document: getDocument(vendor, ['gstCertificate', 'gstDocument', 'gst']),
-      },
-    ];
-  }, [vendor]);
+  const documents = useMemo(
+    () => [
+      { key: 'panCard', title: 'PAN Card', document: vendor?.panCard },
+      { key: 'registrationDoc', title: 'Registration / Ownership Document', document: vendor?.registrationDoc },
+      { key: 'gstCertificate', title: 'GST / VAT Certificate', document: vendor?.gstCertificate },
+    ],
+    [vendor]
+  );
 
   const showToast = useCallback((message, type) => {
     setToast({ message, type });
@@ -198,6 +166,26 @@ const VendorRequestDetails = () => {
       return;
     }
     updateVendorStatus({ rejectionReason: rejectionReason.trim() }, 'Modification request saved');
+  };
+
+  const openDocument = (doc) => {
+    const url = buildDataUrl(doc);
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const downloadDocument = (doc, title) => {
+    const url = buildDataUrl(doc);
+    if (!url) {
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = doc?.name || title;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -327,22 +315,15 @@ const VendorRequestDetails = () => {
             <div className="documents-grid">
               {documents.map(({ key, title, document }) => {
                 const previewUrl = buildDataUrl(document);
-                const handleOpenDocument = (e) => {
-                  e.stopPropagation();
-                  openDocument(document, title);
-                };
                 return (
-                  <div
-                    key={key}
-                    className="document-card"
-                  >
+                  <div key={key} className="document-card">
                     <div className="document-header">
                       <h3>{title}</h3>
                       <div className="document-actions">
                         <button
                           type="button"
                           className="doc-btn"
-                          onClick={handleOpenDocument}
+                          onClick={() => openDocument(document)}
                           disabled={!previewUrl}
                         >
                           <FiExternalLink size={16} />
@@ -351,10 +332,7 @@ const VendorRequestDetails = () => {
                         <button
                           type="button"
                           className="doc-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadDocument(document, title);
-                          }}
+                          onClick={() => downloadDocument(document, title)}
                           disabled={!previewUrl}
                         >
                           <FiDownload size={16} />
@@ -432,15 +410,6 @@ const VendorRequestDetails = () => {
 
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={closeToast} />
-      )}
-
-      {activePreview && (
-        <DocumentPreview
-          document={activePreview.document}
-          title={activePreview.title}
-          onClose={closePreview}
-          onDownload={() => downloadDocument(activePreview.document)}
-        />
       )}
     </div>
   );

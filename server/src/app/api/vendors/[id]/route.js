@@ -60,14 +60,9 @@ export const GET = withCORS(async (_request, context) => {
           city: vendor.city,
           status: vendor.status,
           role: vendor.role || 'vendor',
-          // Backwards-compatible keys
           panCard: vendor.panCard || '',
           registrationDoc: vendor.registrationDoc || '',
           gstCertificate: vendor.gstCertificate || '',
-          // Standardized keys
-          panDocument: vendor.panDocument || vendor.panCard || vendor.pan || '',
-          registrationDocument: vendor.registrationDocument || vendor.registrationDoc || vendor.registration || '',
-          gstDocument: vendor.gstDocument || vendor.gstCertificate || vendor.gst || '',
           rejectionReason: vendor.rejectionReason || '',
           createdAt: vendor.createdAt,
           updatedAt: vendor.updatedAt,

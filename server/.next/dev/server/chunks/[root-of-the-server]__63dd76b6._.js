@@ -274,7 +274,7 @@ VendorSchema.pre('save', async function(next) {
         next(error);
     }
 });
-const __TURBOPACK__default__export__ = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].models.Vendor || __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].model('Vendor', VendorSchema, 'vendors');
+const __TURBOPACK__default__export__ = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].models.Vendor || __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].model('Vendor', VendorSchema);
 }),
 "[project]/server/src/lib/cors.js [app-route] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
@@ -373,14 +373,9 @@ const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
                 status: vendor.status || 'rejected',
                 rejectionReason: vendor.rejectionReason || '',
                 role: vendor.role || 'vendor',
-                // Backwards-compatible keys
                 panCard: vendor.panCard || '',
                 registrationDoc: vendor.registrationDoc || '',
                 gstCertificate: vendor.gstCertificate || '',
-                // Standardized keys
-                panDocument: vendor.panDocument || vendor.panCard || vendor.pan || '',
-                registrationDocument: vendor.registrationDocument || vendor.registrationDoc || vendor.registration || '',
-                gstDocument: vendor.gstDocument || vendor.gstCertificate || vendor.gst || '',
                 createdAt: vendor.createdAt,
                 updatedAt: vendor.updatedAt
             }));

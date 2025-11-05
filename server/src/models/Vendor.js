@@ -87,5 +87,4 @@ VendorSchema.pre('save', async function (next) {
   }
 });
 
-// Force collection name to `vendors` to avoid accidental pluralization/name differences
-export default mongoose.models.Vendor || mongoose.model('Vendor', VendorSchema, 'vendors');
+export default mongoose.models.Vendor || mongoose.model('Vendor', VendorSchema);

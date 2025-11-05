@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FiSearch, FiX } from 'react-icons/fi';
+import { FiSearch, FiDownload, FiX } from 'react-icons/fi';
 import './TicketTables.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
@@ -15,7 +15,7 @@ const generateTicketId = (id) => {
 const getPriorityColor = (priority) => {
   const colors = {
     high: '#DC3545',
-    normal: '#FFC107',
+    medium: '#FFC107',
     low: '#28A745',
   };
   return colors[priority] || '#007BFF';
@@ -47,7 +47,7 @@ const VendorTickets = () => {
         const formatted = data.map((ticket) => {
           const baseId = ticket.ticketId || ticket.id;
           const priorityValue = typeof ticket.priority === 'string' ? ticket.priority.toLowerCase() : 'low';
-          const validPriorities = ['high', 'normal', 'low'];
+          const validPriorities = ['high', 'medium', 'low'];
           const status = ticket.status === 'closed' ? 'closed' : 'open';
 
           return {
@@ -75,10 +75,31 @@ const VendorTickets = () => {
     fetchTickets();
   }, []);
 
+  const handleAttachmentClick = (ticket) => {
+    if (!ticket.attachmentUrl && !ticket.attachmentData) {
+      return;
+    }
 
-    
+    if (ticket.attachmentUrl) {
+      window.open(ticket.attachmentUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
 
+    if (!ticket.attachmentData) {
+      return;
+    }
 
+    const dataSource = ticket.attachmentData.startsWith('data:')
+      ? ticket.attachmentData
+      : `data:application/octet-stream;base64,${ticket.attachmentData}`;
+
+    const link = document.createElement('a');
+    link.href = dataSource;
+    link.download = ticket.attachmentName || 'attachment';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch =
@@ -175,7 +196,7 @@ const VendorTickets = () => {
           >
             <option value="all">All</option>
             <option value="high">High</option>
-            <option value="normal">Normal</option>
+            <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
         </div>
@@ -185,10 +206,11 @@ const VendorTickets = () => {
         <table className="tickets-table">
           <thead>
             <tr>
-              <th>Serial Number</th>
+              <th>Ticket ID</th>
               <th>Vendor ID</th>
               <th>Title</th>
               <th>Priority</th>
+              <th>Attachment</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -219,6 +241,17 @@ const VendorTickets = () => {
                     >
                       {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                     </span>
+                  </td>
+                  <td className="attachment-cell">
+                    <button
+                      className="attachment-btn"
+                      onClick={() => handleAttachmentClick(ticket)}
+                      title={ticket.attachmentName ? 'Download attachment' : 'No attachment available'}
+                      disabled={!ticket.attachmentName && !ticket.attachmentUrl && !ticket.attachmentData}
+                    >
+                      <FiDownload size={16} />
+                      {ticket.attachmentName || 'No attachment'}
+                    </button>
                   </td>
                   <td className="status-cell">
                     <span className={getStatusClass(ticket.status)}>{getStatusLabel(ticket.status)}</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FiSearch, FiDownload, FiX } from 'react-icons/fi';
 import './TicketTables.css';
 
@@ -6,65 +6,71 @@ const UserTickets = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [confirmModal, setConfirmModal] = useState(null);
-  const [tickets, setTickets] = useState([
-    {
-      id: 'TKT-101',
-      userId: 'U-001',
-      title: 'Unable to Book Event',
-      priority: 'high',
-      attachment: 'error_screenshot.png',
-      status: 'open',
-    },
-    {
-      id: 'TKT-102',
-      userId: 'U-005',
-      title: 'Refund Request for Cancelled Event',
-      priority: 'high',
-      attachment: 'cancellation_request.pdf',
-      status: 'open',
-    },
-    {
-      id: 'TKT-103',
-      userId: 'U-003',
-      title: 'Password Reset Not Working',
-      priority: 'medium',
-      attachment: 'account_issue.docx',
-      status: 'closed',
-    },
-    {
-      id: 'TKT-104',
-      userId: 'U-002',
-      title: 'Event Date Changed by Vendor',
-      priority: 'medium',
-      attachment: 'date_change_notice.pdf',
-      status: 'open',
-    },
-    {
-      id: 'TKT-105',
-      userId: 'U-004',
-      title: 'Missing Invoice for Event',
-      priority: 'low',
-      attachment: 'invoice_request.txt',
-      status: 'closed',
-    },
-    {
-      id: 'TKT-106',
-      userId: 'U-006',
-      title: 'Payment Charged Twice',
-      priority: 'high',
-      attachment: 'payment_duplicate.xlsx',
-      status: 'open',
-    },
-  ]);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch =
-      ticket.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.userId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
+      (!searchTerm ||
+        (ticket.ticketId || ticket.id || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ticket.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ticket.user || ticket.userId || '').toString().toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesPriority = priorityFilter === 'all' || (ticket.priority || '').toLowerCase() === priorityFilter;
     return matchesSearch && matchesPriority;
   });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const fetchTickets = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const params = new URLSearchParams();
+        if (priorityFilter && priorityFilter !== 'all') params.append('priority', priorityFilter);
+        if (searchTerm) params.append('search', searchTerm);
+
+        const res = await fetch(`/api/tickets${params.toString() ? `?${params.toString()}` : ''}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Server error ${res.status}: ${text}`);
+        }
+
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Failed to load tickets');
+
+        // Map API tickets to local shape expected by the UI
+        const mapped = (json.data || []).map((t) => ({
+          id: t.id || t._id,
+          ticketId: t.ticketId || t.id,
+          userId: t.userId || '',
+          user: t.user || '',
+          title: t.title || '',
+          priority: t.priority || 'low',
+          attachment: t.attachment || '',
+          attachmentUrl: t.attachmentUrl || t.attachmentData || '',
+          status: t.status || 'open',
+        }));
+
+        setTickets(mapped);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error fetching tickets:', err);
+          setError(err.message || 'Failed to fetch tickets');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTickets();
+    return () => controller.abort();
+  }, [priorityFilter, searchTerm]);
 
   const handleCloseTicket = (ticketId) => {
     setConfirmModal({
@@ -154,11 +160,19 @@ const UserTickets = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredTickets.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="7" className="no-data">Loading tickets...</td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan="7" className="no-data">Error: {error}</td>
+              </tr>
+            ) : filteredTickets.length > 0 ? (
               filteredTickets.map((ticket) => (
                 <tr key={ticket.id}>
-                  <td className="ticket-id-cell">{ticket.id}</td>
-                  <td className="user-id-cell">{ticket.userId}</td>
+                  <td className="ticket-id-cell">{ticket.ticketId || ticket.id}</td>
+                  <td className="user-id-cell">{ticket.user || ticket.userId}</td>
                   <td className="title-cell">{ticket.title}</td>
                   <td className="priority-cell">
                     <span
@@ -169,10 +183,17 @@ const UserTickets = () => {
                     </span>
                   </td>
                   <td className="attachment-cell">
-                    <button className="attachment-btn" title="Download attachment">
-                      <FiDownload size={16} />
-                      {ticket.attachment}
-                    </button>
+                    {ticket.attachmentUrl ? (
+                      <a href={ticket.attachmentUrl} target="_blank" rel="noopener noreferrer" className="attachment-btn">
+                        <FiDownload size={16} />
+                        {ticket.attachment || 'Download'}
+                      </a>
+                    ) : (
+                      <button className="attachment-btn" disabled title="No attachment">
+                        <FiDownload size={16} />
+                        {ticket.attachment || '—'}
+                      </button>
+                    )}
                   </td>
                   <td className="status-cell">
                     <span

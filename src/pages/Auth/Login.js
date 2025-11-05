@@ -15,8 +15,7 @@ const Login = () => {
 
   // Validate email format
   const validateEmail = (emailValue) => {
-    // simplified regex without unnecessary escaped characters inside character classes
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     return emailRegex.test(emailValue);
   };
 

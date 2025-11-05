@@ -271,11 +271,117 @@ function withCORS(handler) {
 }
 ;
 }),
-"[project]/server/src/app/api/users/route.js [app-route] (ecmascript)", ((__turbopack_context__, module, exports) => {
+"[project]/server/src/app/api/users/route.js [app-route] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
-const e = new Error("Could not parse module '[project]/server/src/app/api/users/route.js'\n\nExpression expected");
-e.code = 'MODULE_UNPARSABLE';
-throw e;
+__turbopack_context__.s([
+    "GET",
+    ()=>GET
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/node_modules/next/server.js [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/src/lib/db.js [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/src/models/User.js [app-route] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/src/lib/cors.js [app-route] (ecmascript)");
+;
+;
+;
+;
+const parseDate = (value)=>{
+    if (!value) {
+        return null;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+    return parsed;
+};
+const computeStartDate = (timeframe)=>{
+    const now = new Date();
+    if (timeframe === 'week') {
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+    if (timeframe === 'month') {
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    if (timeframe === 'year') {
+        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    }
+    return null;
+};
+const mapUser = (user)=>({
+        id: user._id.toString(),
+        fullName: user.name || user.fullName || '',
+        email: user.email || '',
+        mobileNumber: user.mobile || user.phone || '',
+        status: user.status || 'active',
+        address: user.address || '',
+        city: user.city || '',
+        createdAt: user.createdAt || null,
+        updatedAt: user.updatedAt || null
+    });
+const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["withCORS"])(async (request)=>{
+    try {
+        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"])();
+        const url = new URL(request.url);
+        const searchParams = url.searchParams;
+        const filters = {};
+        const timeframe = (searchParams.get('timeframe') || '').toLowerCase();
+        const emailQuery = searchParams.get('email');
+        const startDate = parseDate(searchParams.get('startDate'));
+        const endDate = parseDate(searchParams.get('endDate'));
+        const statusQuery = (searchParams.get('status') || '').toLowerCase();
+        if (emailQuery) {
+            filters.email = {
+                $regex: emailQuery.trim(),
+                $options: 'i'
+            };
+        }
+        if (startDate || endDate) {
+            filters.createdAt = {};
+            if (startDate) {
+                filters.createdAt.$gte = startDate;
+            }
+            if (endDate) {
+                const inclusiveEnd = new Date(endDate);
+                inclusiveEnd.setHours(23, 59, 59, 999);
+                filters.createdAt.$lte = inclusiveEnd;
+            }
+        } else {
+            const timeframeStart = computeStartDate(timeframe);
+            if (timeframeStart) {
+                filters.createdAt = {
+                    $gte: timeframeStart
+                };
+            }
+        }
+        if (statusQuery) {
+            filters.status = statusQuery;
+        } else {
+            filters.status = {
+                $ne: 'blocked'
+            };
+        }
+        const users = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].find(filters).sort({
+            createdAt: -1
+        }).lean();
+        const data = users.map(mapUser);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: true,
+            data
+        }, {
+            status: 200
+        });
+    } catch (error) {
+        console.error('Failed to load users', error);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: false,
+            message: 'Failed to load users'
+        }, {
+            status: 500
+        });
+    }
+});
 }),
 ];
 

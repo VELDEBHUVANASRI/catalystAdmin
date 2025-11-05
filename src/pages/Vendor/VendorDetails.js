@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiRefreshCw, FiSearch } from 'react-icons/fi';
+import Toast from '../../components/Toast/Toast';
 import './VendorDetails.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
@@ -14,6 +15,7 @@ const VendorDetails = () => {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [approvedVendors, setApprovedVendors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const categories = ['Catering', 'Decoration', 'Photography', 'Music', 'Videography', 'Entertainment', 'Flowers', 'Other'];
 
@@ -89,6 +91,7 @@ const VendorDetails = () => {
   );
 
   const filteredApprovedVendors = filterVendors(approvedVendors);
+  const filteredRejectedVendors = [];
 
   const handleResetFilters = () => {
     setBusinessNameFilter('');

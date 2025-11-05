@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiX } from 'react-icons/fi';
+import { FiMenu, FiX, FiChevronDown } from 'react-icons/fi';
 import {
   MdDashboard,
   MdStore,
@@ -37,7 +37,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       icon: <MdStore size={20} />,
       submenu: [
         { label: 'Vendor Request', path: '/vendor/request' },
-        { label: 'Accepted Vendor', path: '/vendor/details' },
+        { label: 'Vendor Details', path: '/vendor/details' },
         { label: 'Create Vendor', path: '/vendor/create' },
         { label: 'Services', path: '/vendor/services' },
       ],
@@ -46,7 +46,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       label: 'User',
       icon: <MdPeople size={20} />,
       submenu: [
-        { label: 'Active Users', path: '/user' },
+        { label: 'User Details', path: '/user' },
+        { label: 'Active Users', path: '/user/active' },
         { label: 'Create User', path: '/user/create' },
       ],
     },

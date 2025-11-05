@@ -1,10 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiDownload, FiExternalLink } from 'react-icons/fi';
+import Toast from '../../components/Toast/Toast';
 import './VendorDetailsAccepted.css';
-import { buildDataUrl, getDocument } from '../../lib/vendorDocs';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
+
+const buildDataUrl = (document) => {
+  if (!document?.data) {
+    return null;
+  }
+  const type = document.type ? document.type.trim() : 'application/octet-stream';
+  return `data:${type};base64,${document.data}`;
+};
 
 const VendorDetailsAccepted = () => {
   const navigate = useNavigate();
@@ -16,7 +24,13 @@ const VendorDetailsAccepted = () => {
   const [vendor, setVendor] = useState(null);
   const [loading, setLoading] = useState(Boolean(vendorId));
   const [error, setError] = useState('');
-  // toast helpers removed (not used in this view)
+  const [toast, setToast] = useState(null);
+
+  const showToast = useCallback((message, type) => {
+    setToast({ message, type });
+  }, []);
+
+  const closeToast = useCallback(() => setToast(null), []);
 
   const fetchVendor = useCallback(async () => {
     if (!vendorId) {
@@ -52,9 +66,9 @@ const VendorDetailsAccepted = () => {
 
   const documents = useMemo(
     () => [
-      { key: 'pan', title: 'PAN Card', document: getDocument(vendor, ['panDocument','panCard','pan']) },
-      { key: 'registration', title: 'Registration / Ownership Document', document: getDocument(vendor, ['registrationDocument','registrationDoc','registration']) },
-      { key: 'gst', title: 'GST / VAT Certificate', document: getDocument(vendor, ['gstDocument','gstCertificate','gst']) },
+      { key: 'panCard', title: 'PAN Card', document: vendor?.panCard },
+      { key: 'registrationDoc', title: 'Registration / Ownership Document', document: vendor?.registrationDoc },
+      { key: 'gstCertificate', title: 'GST / VAT Certificate', document: vendor?.gstCertificate },
     ],
     [vendor]
   );

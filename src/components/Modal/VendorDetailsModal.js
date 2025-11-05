@@ -1,28 +1,7 @@
 import React, { useState } from 'react';
-import { FiX, FiCheck, FiDownload, FiExternalLink } from 'react-icons/fi';
+import { FiX, FiCheck, FiDownload } from 'react-icons/fi';
 import Modal from './Modal';
 import './VendorDetailsModal.css';
-import { buildDataUrl, getDocument } from '../../lib/vendorDocs';
-
-
-
-const openDocument = (document) => {
-  const url = buildDataUrl(document);
-  if (!url) return;
-  window.open(url, '_blank', 'noopener,noreferrer');
-};
-
-const downloadDocument = (document, fallbackName) => {
-  const url = buildDataUrl(document);
-  if (!url) return;
-  const link = document.createElement('a');
-  link.href = url;
-  // prefer provided name field, else fallback
-  link.download = typeof document === 'object' ? (document.name || fallbackName) : fallbackName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
 
 const VendorDetailsModal = ({ vendor, isOpen, onClose, onApprove, onReject }) => {
   const [rejectionReason, setRejectionReason] = useState('');
@@ -34,7 +13,7 @@ const VendorDetailsModal = ({ vendor, isOpen, onClose, onApprove, onReject }) =>
     <Modal isOpen={isOpen} onClose={onClose} className="vendor-details-modal">
       <div className="vendor-details-content">
         <div className="vendor-details-header">
-          <h2>Accepted Vendor</h2>
+          <h2>Vendor Details</h2>
           <button className="close-button" onClick={onClose}>
             <FiX />
           </button>
@@ -75,57 +54,30 @@ const VendorDetailsModal = ({ vendor, isOpen, onClose, onApprove, onReject }) =>
 
           <div className="detail-group">
             <h3>Documents</h3>
-            {/* Accept multiple naming conventions from different APIs (panCard / panDocument etc) */}
-            {(() => {
-              const pan = getDocument(vendor, ['panCard', 'panDocument', 'pan']);
-              return pan ? (
-                <div className="document-row">
-                  <span>PAN Card</span>
-                  <div className="doc-actions">
-                    <button type="button" className="doc-btn" onClick={() => openDocument(pan)} disabled={!buildDataUrl(pan)}>
-                      <FiExternalLink /> View
-                    </button>
-                    <button type="button" className="doc-btn" onClick={() => downloadDocument(pan, 'pan-card')} disabled={!buildDataUrl(pan)}>
-                      <FiDownload /> Download
-                    </button>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            {(() => {
-              const gst = getDocument(vendor, ['gstCertificate', 'gstDocument', 'gst']);
-              return gst ? (
-                <div className="document-row">
-                  <span>GST Certificate</span>
-                  <div className="doc-actions">
-                    <button type="button" className="doc-btn" onClick={() => openDocument(gst)} disabled={!buildDataUrl(gst)}>
-                      <FiExternalLink /> View
-                    </button>
-                    <button type="button" className="doc-btn" onClick={() => downloadDocument(gst, 'gst-certificate')} disabled={!buildDataUrl(gst)}>
-                      <FiDownload /> Download
-                    </button>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            {(() => {
-              const reg = getDocument(vendor, ['registrationDoc', 'registrationDocument', 'registration']);
-              return reg ? (
-                <div className="document-row">
-                  <span>Registration Document</span>
-                  <div className="doc-actions">
-                    <button type="button" className="doc-btn" onClick={() => openDocument(reg)} disabled={!buildDataUrl(reg)}>
-                      <FiExternalLink /> View
-                    </button>
-                    <button type="button" className="doc-btn" onClick={() => downloadDocument(reg, 'registration-doc')} disabled={!buildDataUrl(reg)}>
-                      <FiDownload /> Download
-                    </button>
-                  </div>
-                </div>
-              ) : null;
-            })()}
+            {vendor.panDocument && (
+              <div className="document-row">
+                <span>PAN Document</span>
+                <a href={vendor.panDocument} target="_blank" rel="noopener noreferrer">
+                  <FiDownload /> Download
+                </a>
+              </div>
+            )}
+            {vendor.gstDocument && (
+              <div className="document-row">
+                <span>GST Document</span>
+                <a href={vendor.gstDocument} target="_blank" rel="noopener noreferrer">
+                  <FiDownload /> Download
+                </a>
+              </div>
+            )}
+            {vendor.registrationDocument && (
+              <div className="document-row">
+                <span>Registration Document</span>
+                <a href={vendor.registrationDocument} target="_blank" rel="noopener noreferrer">
+                  <FiDownload /> Download
+                </a>
+              </div>
+            )}
           </div>
         </div>
 

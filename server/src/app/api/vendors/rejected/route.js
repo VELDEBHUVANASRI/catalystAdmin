@@ -30,14 +30,9 @@ export const GET = withCORS(async () => {
       status: vendor.status || 'rejected',
       rejectionReason: vendor.rejectionReason || '',
       role: vendor.role || 'vendor',
-      // Backwards-compatible keys
       panCard: vendor.panCard || '',
       registrationDoc: vendor.registrationDoc || '',
       gstCertificate: vendor.gstCertificate || '',
-      // Standardized keys
-      panDocument: vendor.panDocument || vendor.panCard || vendor.pan || '',
-      registrationDocument: vendor.registrationDocument || vendor.registrationDoc || vendor.registration || '',
-      gstDocument: vendor.gstDocument || vendor.gstCertificate || vendor.gst || '',
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,
     }));

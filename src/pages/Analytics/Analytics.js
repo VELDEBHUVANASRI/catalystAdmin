@@ -4,7 +4,7 @@ import './Analytics.css';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
 
 const Analytics = () => {
-  // chartType was previously declared but unused; default chart is a donut visualization
+  const [chartType] = useState('donut'); // Can be 'donut' or 'bar'
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState([
     { title: 'Total Events', value: 0, color: '#4da6ff' },
@@ -70,7 +70,9 @@ const Analytics = () => {
 
   // Generate Donut Chart SVG
   const generateDonutChart = () => {
+    const size = 200;
     const radius = 70;
+    const circumference = 2 * Math.PI * radius;
     let currentAngle = 0;
 
     return (

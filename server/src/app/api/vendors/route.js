@@ -39,14 +39,9 @@ export const GET = withCORS(async (request) => {
       city: vendor.city || '',
       status: vendor.status || 'pending',
       role: vendor.role || 'vendor',
-      // Keep existing keys for backward compatibility
       panCard: vendor.panCard || '',
       registrationDoc: vendor.registrationDoc || '',
       gstCertificate: vendor.gstCertificate || '',
-      // Standardized keys (preferred)
-      panDocument: vendor.panDocument || vendor.panCard || vendor.pan || '',
-      registrationDocument: vendor.registrationDocument || vendor.registrationDoc || vendor.registration || '',
-      gstDocument: vendor.gstDocument || vendor.gstCertificate || vendor.gst || '',
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt
     }));

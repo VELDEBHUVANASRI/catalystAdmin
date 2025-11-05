@@ -182,32 +182,17 @@ const VendorCreate = () => {
         }),
       });
 
-      // Safely parse JSON response. Some server errors may return empty or non-JSON bodies,
-      // which causes response.json() to throw "Unexpected end of JSON input". We handle that
-      // by reading text and attempting to JSON.parse it, falling back to a useful message.
-      let result = null;
-      let rawText = null;
-      try {
-        rawText = await response.text();
-        result = rawText ? JSON.parse(rawText) : null;
-      } catch (parseErr) {
-        // ignore parse error; result stays null and rawText may contain plain text
-        result = null;
-      }
-
       if (!response.ok) {
-        const msg = (result && result.message) || response.statusText || rawText || 'Failed to create vendor account';
-        throw new Error(msg);
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create vendor account');
       }
 
-      if (result && result.success) {
+      const result = await response.json();
+
+      if (result.success) {
         setSuccessModal(true);
-      } else if (result && !result.success) {
-        showToast(result.message || 'Failed to create vendor account', 'error');
       } else {
-        // No JSON body but status was OK — treat as success or show generic message
-        // Some servers may return 201 with empty body; we'll consider that success.
-        setSuccessModal(true);
+        showToast(result.message || 'Failed to create vendor account', 'error');
       }
 
     } catch (error) {

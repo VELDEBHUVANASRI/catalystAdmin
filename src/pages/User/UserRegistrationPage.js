@@ -41,8 +41,7 @@ const UserRegistrationPage = () => {
   };
 
   const validateMobile = (mobile) => {
-    // Allow digits, spaces, plus, parentheses and hyphen; hyphen placed at end to avoid range
-    const mobileRegex = /^[0-9\s()+-]{10,}$/;
+    const mobileRegex = /^[0-9\s\-\+\(\)]{10,}$/;
     return mobileRegex.test(mobile);
   };
 
@@ -56,7 +55,6 @@ const UserRegistrationPage = () => {
       return;
     }
     alert('OTP sent to ' + formData.email);
-    setEmailVerified(true);
   };
 
   const handleVerifyMobile = () => {
@@ -69,7 +67,6 @@ const UserRegistrationPage = () => {
       return;
     }
     alert('OTP sent to ' + formData.mobileNumber);
-    setMobileVerified(true);
   };
 
   const handleSubmit = (e) => {

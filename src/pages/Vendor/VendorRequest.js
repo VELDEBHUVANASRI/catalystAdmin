@@ -6,14 +6,32 @@ import Toast from '../../components/Toast/Toast';
 import VendorDetailsModal from '../../components/Modal/VendorDetailsModal';
 import './VendorRequest.css';
 
-// helper removed: fetchPendingVendors was an unused helper and duplicated by fetchVendors
+const fetchPendingVendors = async () => {
+  try {
+    console.log('Fetching pending vendors from:', `${API_BASE_URL}/api/vendors/pending`);
+    const response = await fetch(`${API_BASE_URL}/api/vendors/pending`);
+    console.log('Response status:', response.status);
+    const data = await response.json();
+    console.log('Received data:', data);
+    if (data.success) {
+      console.log('Successfully fetched vendors:', data.data.length);
+      return data.data;
+    }
+    throw new Error(data.message || 'Failed to fetch pending vendors');
+  } catch (error) {
+    console.error('Error fetching pending vendors:', error);
+    throw error;
+  }
+};
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
 
 // For the Vendor Request page we show Pending, Approved, Rejected, and All vendors
 const TABS = [
-  { key: 'pending', label: 'Pending Vendors' }
- 
+  { key: 'pending', label: 'Pending Vendors' },
+  { key: 'approved', label: 'Approved Vendors' },
+  { key: 'rejected', label: 'Rejected Vendors' },
+  { key: 'all', label: 'All Vendors' },
 ];
 
 const formatVendor = (vendor) => ({
@@ -26,10 +44,9 @@ const formatVendor = (vendor) => ({
   city: vendor.city || '',
   status: (vendor.status || '').toLowerCase(),
   role: vendor.role || 'vendor',
-  // Standardized keys with fallbacks for older naming conventions
-  panDocument: vendor.panDocument || vendor.panCard || vendor.pan || '',
-  registrationDocument: vendor.registrationDocument || vendor.registrationDoc || vendor.registration || '',
-  gstDocument: vendor.gstDocument || vendor.gstCertificate || vendor.gst || '',
+  panCard: vendor.panCard || '',
+  registrationDoc: vendor.registrationDoc || '',
+  gstCertificate: vendor.gstCertificate || '',
   createdAt: vendor.createdAt,
   updatedAt: vendor.updatedAt
 });
