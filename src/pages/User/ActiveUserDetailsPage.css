@@ -1,0 +1,153 @@
+.user-details-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #007acc;
+  border: 1px solid #4da6ff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.block-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.status-row {
+  color: #64748b;
+}
+
+.error-row {
+  color: #ef4444;
+}
+
+.user-details-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e6f3ff;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.card-title {
+  margin: 0 0 12px 0;
+  color: #007acc;
+}
+
+.user-profile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.profile-pic {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #e6f3ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #4da6ff;
+  background: #f0f8ff;
+}
+
+.profile-info {
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.label {
+  width: 140px;
+  color: #64748b;
+}
+
+.value {
+  color: #0f172a;
+}
+
+.member-since {
+  color: #007acc;
+  font-weight: 600;
+}
+
+.orders-table-wrapper {
+  overflow-x: auto;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders-table thead th {
+  background: #f8fbff;
+  color: #007acc;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6f3ff;
+}
+
+.orders-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+@media (max-width: 768px) {
+  .user-profile {
+    grid-template-columns: 1fr;
+  }
+  .label {
+    width: 120px;
+  }
+}
+
+

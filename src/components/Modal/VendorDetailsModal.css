@@ -1,0 +1,196 @@
+.vendor-details-modal {
+  max-width: 800px;
+  width: 90%;
+}
+
+.vendor-details-content {
+  padding: 2rem;
+}
+
+.vendor-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.vendor-details-header h2 {
+  margin: 0;
+  color: #007acc;
+  font-size: 1.5rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #666;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.vendor-details-body {
+  margin-bottom: 2rem;
+}
+
+.detail-group {
+  margin-bottom: 2rem;
+}
+
+.detail-group h3 {
+  color: #007acc;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background-color: #f8fbff;
+  border-radius: 8px;
+}
+
+.detail-label {
+  width: 150px;
+  font-weight: 500;
+  color: #333;
+}
+
+.detail-value {
+  color: #666;
+  flex: 1;
+}
+
+.document-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #f8fbff;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.document-row a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4da6ff;
+  text-decoration: none;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.document-row a:hover {
+  background-color: #e6f3ff;
+}
+
+.vendor-details-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e6e6e6;
+}
+
+.approve-button,
+.reject-button,
+.cancel-button,
+.confirm-reject-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.approve-button {
+  background-color: #4da6ff;
+  color: white;
+}
+
+.reject-button {
+  background-color: #ff4d4d;
+  color: white;
+}
+
+.cancel-button {
+  background-color: #e6e6e6;
+  color: #666;
+}
+
+.confirm-reject-button {
+  background-color: #ff4d4d;
+  color: white;
+}
+
+.approve-button:hover,
+.reject-button:hover,
+.cancel-button:hover,
+.confirm-reject-button:hover {
+  opacity: 0.9;
+}
+
+.rejection-form {
+  width: 100%;
+}
+
+.rejection-form textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  resize: vertical;
+}
+
+.rejection-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .vendor-details-content {
+    padding: 1rem;
+  }
+
+  .detail-row {
+    flex-direction: column;
+  }
+
+  .detail-label {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .rejection-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .approve-button,
+  .reject-button,
+  .cancel-button,
+  .confirm-reject-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

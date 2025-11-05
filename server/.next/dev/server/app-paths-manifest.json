@@ -1,0 +1,11 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/analytics/route": "app/api/analytics/route.js",
+  "/api/tickets/route": "app/api/tickets/route.js",
+  "/api/users/[id]/route": "app/api/users/[id]/route.js",
+  "/api/users/route": "app/api/users/route.js",
+  "/api/vendors/approved/route": "app/api/vendors/approved/route.js",
+  "/api/vendors/pending/route": "app/api/vendors/pending/route.js",
+  "/api/vendors/rejected/route": "app/api/vendors/rejected/route.js",
+  "/api/vendors/route": "app/api/vendors/route.js"
+}
