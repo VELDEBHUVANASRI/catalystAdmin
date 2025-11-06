@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdStore } from 'react-icons/md';
-import { FiCheck, FiEye, FiX } from 'react-icons/fi';
+import { FiEye, FiCheck, FiX } from 'react-icons/fi';
 import Toast from '../../components/Toast/Toast';
 import VendorDetailsModal from '../../components/Modal/VendorDetailsModal';
 import './VendorRequest.css';
@@ -31,25 +31,37 @@ const TABS = [
   { key: 'pending', label: 'Pending Vendors' },
   { key: 'approved', label: 'Approved Vendors' },
   { key: 'rejected', label: 'Rejected Vendors' },
-  { key: 'all', label: 'All Vendors' },
+  // 'all' tab removed as per UI update
 ];
 
-const formatVendor = (vendor) => ({
-  id: vendor.id || vendor._id || '',
-  businessName: vendor.businessName || '',
-  contactName: vendor.contactName || '',
-  category: vendor.category || '',
-  email: vendor.email || '',
-  phone: vendor.phone || '',
-  city: vendor.city || '',
-  status: (vendor.status || '').toLowerCase(),
-  role: vendor.role || 'vendor',
-  panCard: vendor.panCard || '',
-  registrationDoc: vendor.registrationDoc || '',
-  gstCertificate: vendor.gstCertificate || '',
-  createdAt: vendor.createdAt,
-  updatedAt: vendor.updatedAt
-});
+const formatVendor = (vendor) => {
+  if (!vendor) return null;
+  
+  // Ensure we have a valid ID
+  const id = vendor._id?.toString() || vendor.id || '';
+  if (!id) {
+    console.error('Invalid vendor ID:', vendor);
+    return null;
+  }
+
+  return {
+    id,
+    businessName: vendor.businessName || '',
+    contactName: vendor.contactName || '',
+    category: vendor.category || '',
+    email: vendor.email || '',
+    phone: vendor.phone || '',
+    city: vendor.city || '',
+    status: (vendor.status || '').toLowerCase(),
+    role: vendor.role || 'vendor',
+    panCard: vendor.panCard || '',
+    registrationDoc: vendor.registrationDoc || '',
+    gstCertificate: vendor.gstCertificate || '',
+    createdAt: vendor.createdAt,
+    updatedAt: vendor.updatedAt,
+    rejectionReason: vendor.rejectionReason || ''
+  };
+};
 
 const tabEndpoint = {
   pending: '/api/vendors/pending',
@@ -61,9 +73,9 @@ const tabEndpoint = {
 const VendorRequest = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('pending');
-  const [vendors, setVendors] = useState({ pending: [], approved: [], rejected: [], all: [] });
-  const [loading, setLoading] = useState({ pending: false, approved: false, rejected: false, all: false });
-  const [errors, setErrors] = useState({ pending: '', approved: '', rejected: '', all: '' });
+  const [vendors, setVendors] = useState({ pending: [], approved: [], rejected: [] });
+  const [loading, setLoading] = useState({ pending: false, approved: false, rejected: false });
+  const [errors, setErrors] = useState({ pending: '', approved: '', rejected: '' });
   const [toast, setToast] = useState(null);
   const [approveVendor, setApproveVendor] = useState(null);
   const [rejectVendor, setRejectVendor] = useState(null);
@@ -85,51 +97,99 @@ const VendorRequest = () => {
   };
 
   const handleApproveVendor = async (vendor) => {
-    if (actionLoading) return;
-
     try {
+      // Validate vendor object
+      if (!vendor) {
+        throw new Error('Invalid vendor data');
+      }
+
+      // Accept both vendor.id and vendor._id (Mongoose documents)
+      const vendorIdRaw = vendor.id || vendor._id;
+      const vendorId = vendorIdRaw ? String(vendorIdRaw).trim() : '';
+      if (!vendorId) {
+        console.error('Invalid vendor ID:', vendor);
+        throw new Error('Invalid vendor ID');
+      }
+
+      // Check if already approved
+      if ((vendor.status || '').toLowerCase() === 'approved') {
+        showToast('This vendor is already approved', 'info');
+        return;
+      }
+
+      // Prevent multiple submissions
+      if (actionLoading) {
+        return;
+      }
+
+      // Ask for confirmation
+      const displayName = vendor.businessName || vendor.email || 'this vendor';
+      if (!window.confirm(`Are you sure you want to approve ${displayName}?`)) {
+        return;
+      }
+
       setActionLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/vendors/${vendor.id}`, {
+      console.log('Approving vendor:', { id: vendorId, business: vendor.businessName });
+      
+      const response = await fetch(`${API_BASE_URL}/api/vendors/${vendorId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: 'approved'
+          status: 'approved',
+          rejectionReason: ''
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to approve vendor');
-      }
-
       const result = await response.json();
-      
-      if (result.success) {
-        // Update local state to reflect changes immediately
-        setVendors(prevVendors => ({
-          ...prevVendors,
-          pending: prevVendors.pending.filter(v => v.id !== vendor.id),
-          approved: [...prevVendors.approved, { ...vendor, status: 'approved' }]
-        }));
+      console.log('Approval response:', { status: response.status, data: result });
 
-        showToast('Vendor approved successfully', 'success');
-        setIsDetailsModalOpen(false);
-
-        // Trigger a status update event
-        window.dispatchEvent(
-          new CustomEvent('vendor-status-updated', {
-            detail: { vendorId: vendor.id, status: 'approved' },
-          })
-        );
-
-        // Refresh both tabs to ensure data consistency
-        await Promise.all([
-          fetchVendors('pending'),
-          fetchVendors('approved')
-        ]);
+      // Handle non-200 responses
+      if (!response.ok) {
+        throw new Error(result.message || `Server error: ${response.status}`);
       }
+
+      // Handle unsuccessful operations
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to approve vendor');
+      }
+
+      // Get the updated vendor data from the response
+      const updatedVendor = {
+        ...vendor,
+        ...result.data,
+        id: vendorId,
+        status: 'approved',
+        rejectionReason: '',
+        updatedAt: new Date().toISOString()
+      };
+
+      // Update local state (no 'all' tab)
+      setVendors(prevVendors => ({
+        ...prevVendors,
+        pending: prevVendors.pending.filter(v => (v.id || v._id) !== vendorId),
+        approved: [...prevVendors.approved, updatedVendor]
+      }));
+
+      showToast('Vendor approved successfully', 'success');
+      setIsDetailsModalOpen(false);
+
+      // Trigger a status update event
+      window.dispatchEvent(
+        new CustomEvent('vendor-status-updated', {
+          detail: { 
+            vendorId, 
+            status: 'approved',
+            timestamp: new Date().toISOString()
+          },
+        })
+      );
+
+      // Refresh lists to ensure data consistency
+      await requestRefreshAll();
     } catch (error) {
+      console.error('Error approving vendor:', error);
       showToast(error.message || 'Failed to approve vendor', 'error');
     } finally {
       setActionLoading(false);
@@ -278,12 +338,11 @@ const VendorRequest = () => {
 
   useEffect(() => {
     console.log('🚀 Component mounted, fetching all vendors...');
-    // Fetch all vendor tabs on mount
+    // Fetch vendor tabs on mount (pending, approved, rejected)
     Promise.all([
       fetchVendors('pending'),
       fetchVendors('approved'),
-      fetchVendors('rejected'),
-      fetchVendors('all')
+      fetchVendors('rejected')
     ]).then(() => {
       console.log('✅ All vendor tabs loaded successfully');
     }).catch(err => {
@@ -352,15 +411,31 @@ const VendorRequest = () => {
       const response = await fetch(`${API_BASE_URL}/api/vendors/${approveVendor.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' }),
+        body: JSON.stringify({
+          status: 'approved',
+          rejectionReason: '' // Explicitly clear any rejection reason
+        }),
       });
+
       if (!response.ok) {
-        throw new Error('Failed to approve vendor');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to approve vendor');
       }
+
       const result = await response.json();
       if (result.success) {
         showToast('Vendor approved successfully!', 'success');
+        
+        // Update local state to remove from pending and add to approved
+        setVendors(prevVendors => ({
+          ...prevVendors,
+          pending: prevVendors.pending.filter(v => v.id !== approveVendor.id),
+          approved: [...prevVendors.approved, { ...approveVendor, status: 'approved', rejectionReason: '' }]
+        }));
+
+        // Refresh all lists to ensure consistency
         requestRefreshAll();
+        
         window.dispatchEvent(
           new CustomEvent('vendor-status-updated', {
             detail: { vendorId: approveVendor.id, status: 'approved' },
@@ -465,7 +540,7 @@ const VendorRequest = () => {
         <th>Phone Number</th>
         <th>Status</th>
         <th>View Details</th>
-        {activeTab === 'pending' && <th>Actions</th>}
+        {activeTab === 'pending' && <th>Action</th>}
       </tr>
     );
   };
@@ -495,24 +570,24 @@ const VendorRequest = () => {
         </td>
         {activeTab === 'pending' && (
           <td>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <div className="action-buttons">
               <button
                 type="button"
-                className="table-btn approve-btn"
-                onClick={() => setApproveVendor(vendor)}
-                title="Approve"
-                disabled={actionLoading}
+                className="action-btn approve"
+                onClick={() => handleApproveVendor(vendor)}
+                disabled={actionLoading || vendor.status === 'approved'}
+                title={vendor.status === 'approved' ? 'Already approved' : 'Approve vendor'}
               >
-                <FiCheck size={18} />
+                <FiCheck size={18} color="#22c55e" />
               </button>
               <button
                 type="button"
-                className="table-btn reject-btn"
+                className="action-btn reject"
                 onClick={() => setRejectVendor(vendor)}
-                title="Reject"
-                disabled={actionLoading}
+                disabled={actionLoading || vendor.status === 'approved'}
+                title="Reject vendor"
               >
-                <FiX size={18} />
+                <FiX size={18} color="#ef4444" />
               </button>
             </div>
           </td>
@@ -576,10 +651,9 @@ const VendorRequest = () => {
                 fetchVendors('pending');
                 fetchVendors('approved');
                 fetchVendors('rejected');
-                fetchVendors('all');
               }} 
               disabled={Object.values(loading).some(l => l)}
-              title="Refresh all vendor tabs"
+              title="Refresh vendor tabs"
             >
               Refresh All
             </button>
@@ -614,26 +688,8 @@ const VendorRequest = () => {
               <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
                 Showing <strong>{activeTab}</strong> vendors.
                 <br />
-                Found: <strong>{vendors.pending.length}</strong> pending, <strong>{vendors.approved.length}</strong> approved, <strong>{vendors.rejected.length}</strong> rejected, <strong>{vendors.all.length}</strong> total.
+                Found: <strong>{vendors.pending.length}</strong> pending, <strong>{vendors.approved.length}</strong> approved, <strong>{vendors.rejected.length}</strong> rejected.
               </p>
-              {activeTab !== 'all' && (
-                <div style={{ marginTop: '15px' }}>
-                  <p style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
-                    Try viewing all vendors to see what's in the database:
-                  </p>
-                  <button 
-                    type="button" 
-                    className="refresh-btn" 
-                    onClick={() => {
-                      setActiveTab('all');
-                      fetchVendors('all');
-                    }}
-                    style={{ marginRight: '10px' }}
-                  >
-                    View All Vendors
-                  </button>
-                </div>
-              )}
               <button 
                 type="button" 
                 className="refresh-btn" 
@@ -641,7 +697,6 @@ const VendorRequest = () => {
                   fetchVendors('pending');
                   fetchVendors('approved');
                   fetchVendors('rejected');
-                  fetchVendors('all');
                 }}
                 style={{ marginTop: '10px' }}
               >

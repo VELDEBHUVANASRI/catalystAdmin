@@ -50,19 +50,36 @@ if (!cached) {
 
 async function dbConnect() {
   try {
+    // Add timeout to prevent hanging connections
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout')), 30000)
+    );
+
     // Return cached connection if already connected and ready
     if (mongoose.connection.readyState === 1) {
-      // Verify we're connected to the correct database
-      if (mongoose.connection.name !== 'wedding') {
-        console.warn(`⚠️ Currently connected to '${mongoose.connection.name}' database, reconnecting to 'wedding' database...`);
-        await mongoose.disconnect();
-        cached.conn = null;
-        cached.promise = null;
-      } else {
-        // Verify connection is actually ready by checking readyState
-        if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      try {
+        // Test the connection is actually responsive
+        await mongoose.connection.db.admin().ping();
+        
+        // Verify we're connected to the correct database
+        if (mongoose.connection.name !== 'wedding') {
+          console.warn(`⚠️ Currently connected to '${mongoose.connection.name}' database, reconnecting to 'wedding' database...`);
+          await mongoose.disconnect();
+          cached.conn = null;
+          cached.promise = null;
+        } else {
+          // Connection is verified working and to correct database
           return mongoose;
         }
+      } catch (error) {
+        console.warn('⚠️ Existing connection appears stale, reconnecting...', error);
+        try {
+          await mongoose.disconnect();
+        } catch (e) {
+          console.error('Failed to cleanly disconnect:', e);
+        }
+        cached.conn = null;
+        cached.promise = null;
       }
     }
 

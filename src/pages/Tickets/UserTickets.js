@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FiSearch, FiDownload, FiX } from 'react-icons/fi';
+import { FiSearch, FiX } from 'react-icons/fi';
 import './TicketTables.css';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000';
 
 const UserTickets = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,67 +12,60 @@ const UserTickets = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      setError('');
+  const res = await fetch(`${API_BASE_URL}/api/usertickets`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+      const body = await res.json();
+      if (!body?.success) throw new Error(body?.message || 'Failed to fetch tickets');
+      setTickets(body.data || []);
+    } catch (err) {
+      console.error('Error fetching tickets:', err);
+      setError(err.message || 'Failed to fetch tickets');
+      setTickets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
   const filteredTickets = tickets.filter((ticket) => {
+    const q = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      (!searchTerm ||
-        (ticket.ticketId || ticket.id || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (ticket.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (ticket.user || ticket.userId || '').toString().toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesPriority = priorityFilter === 'all' || (ticket.priority || '').toLowerCase() === priorityFilter;
+      (ticket.id || '').toLowerCase().includes(q) ||
+      (ticket.title || '').toLowerCase().includes(q) ||
+      (ticket.userId || ticket.user || '').toLowerCase().includes(q);
+    const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
     return matchesSearch && matchesPriority;
   });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const fetchTickets = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const params = new URLSearchParams();
-        if (priorityFilter && priorityFilter !== 'all') params.append('priority', priorityFilter);
-        if (searchTerm) params.append('search', searchTerm);
+  const getStatusLabel = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'open':
+        return 'Open';
+      case 'pending':
+        return 'Pending';
+      case 'in-progress':
+      case 'inprogress':
+        return 'In Progress';
+      case 'resolved':
+        return 'Resolved';
+      case 'closed':
+        return 'Closed';
+      default:
+        return status || '';
+    }
+  };
 
-        const res = await fetch(`/api/tickets${params.toString() ? `?${params.toString()}` : ''}`, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Server error ${res.status}: ${text}`);
-        }
-
-        const json = await res.json();
-        if (!json.success) throw new Error(json.message || 'Failed to load tickets');
-
-        // Map API tickets to local shape expected by the UI
-        const mapped = (json.data || []).map((t) => ({
-          id: t.id || t._id,
-          ticketId: t.ticketId || t.id,
-          userId: t.userId || '',
-          user: t.user || '',
-          title: t.title || '',
-          priority: t.priority || 'low',
-          attachment: t.attachment || '',
-          attachmentUrl: t.attachmentUrl || t.attachmentData || '',
-          status: t.status || 'open',
-        }));
-
-        setTickets(mapped);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('Error fetching tickets:', err);
-          setError(err.message || 'Failed to fetch tickets');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTickets();
-    return () => controller.abort();
-  }, [priorityFilter, searchTerm]);
+  const getStatusClass = (status) => `status-badge ${status}`;
 
   const handleCloseTicket = (ticketId) => {
     setConfirmModal({
@@ -140,7 +135,7 @@ const UserTickets = () => {
           >
             <option value="all">All</option>
             <option value="high">High</option>
-            <option value="medium">Medium</option>
+            <option value="medium">Normal</option>
             <option value="low">Low</option>
           </select>
         </div>
@@ -154,7 +149,6 @@ const UserTickets = () => {
               <th>User ID</th>
               <th>Title</th>
               <th>Priority</th>
-              <th>Attachment</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -162,45 +156,28 @@ const UserTickets = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="no-data">Loading tickets...</td>
+                <td colSpan="6" className="no-data">Loading tickets...</td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan="7" className="no-data">Error: {error}</td>
+                <td colSpan="6" className="no-data">Error: {error}</td>
               </tr>
             ) : filteredTickets.length > 0 ? (
               filteredTickets.map((ticket) => (
                 <tr key={ticket.id}>
                   <td className="ticket-id-cell">{ticket.ticketId || ticket.id}</td>
-                  <td className="user-id-cell">{ticket.user || ticket.userId}</td>
+                  <td className="user-id-cell">{ticket.userId || ticket.user}</td>
                   <td className="title-cell">{ticket.title}</td>
                   <td className="priority-cell">
                     <span
                       className="priority-badge"
                       style={{ backgroundColor: getPriorityColor(ticket.priority) }}
                     >
-                      {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                      {ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : ''}
                     </span>
-                  </td>
-                  <td className="attachment-cell">
-                    {ticket.attachmentUrl ? (
-                      <a href={ticket.attachmentUrl} target="_blank" rel="noopener noreferrer" className="attachment-btn">
-                        <FiDownload size={16} />
-                        {ticket.attachment || 'Download'}
-                      </a>
-                    ) : (
-                      <button className="attachment-btn" disabled title="No attachment">
-                        <FiDownload size={16} />
-                        {ticket.attachment || '—'}
-                      </button>
-                    )}
                   </td>
                   <td className="status-cell">
-                    <span
-                      className={`status-badge ${ticket.status}`}
-                    >
-                      {ticket.status === 'open' ? '🔴 Open' : '✅ Closed'}
-                    </span>
+                    <span className={getStatusClass(ticket.status)}>{getStatusLabel(ticket.status)}</span>
                   </td>
                   <td className="action-cell">
                     {ticket.status === 'open' ? (
@@ -223,7 +200,7 @@ const UserTickets = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="no-data">
+                <td colSpan="6" className="no-data">
                   No tickets found
                 </td>
               </tr>

@@ -34,12 +34,17 @@ const mapUser = (user) => ({
   id: user._id.toString(),
   fullName: user.name || user.fullName || '',
   email: user.email || '',
+  // send both `mobile` and `mobileNumber` for compatibility
+  mobile: user.mobile || user.phone || '',
   mobileNumber: user.mobile || user.phone || '',
   status: user.status || 'active',
   address: user.address || '',
   city: user.city || '',
+  // include both createdAt/updatedAt and friendly names used by the frontend
   createdAt: user.createdAt || null,
   updatedAt: user.updatedAt || null,
+  joinedDate: user.createdAt || null,
+  lastActive: user.updatedAt || null,
 });
 
 export const GET = withCORS(async (request) => {
@@ -106,5 +111,44 @@ export const GET = withCORS(async (request) => {
       },
       { status: 500 }
     );
+  }
+});
+
+export const POST = withCORS(async (request) => {
+  try {
+    await dbConnect();
+
+    const body = await request.json();
+    const { fullName, email, mobile, password } = body || {};
+
+    if (!email || !password) {
+      return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
+    }
+
+    // Check existing user
+    const existing = await User.findOne({ email: email.toLowerCase().trim() }).lean();
+    if (existing) {
+      return NextResponse.json({ success: false, message: 'User with this email already exists' }, { status: 409 });
+    }
+
+    // Hash password using bcryptjs
+    const bcrypt = await import('bcryptjs');
+    const salt = bcrypt.genSaltSync(10);
+    const hashed = bcrypt.hashSync(password, salt);
+
+    const user = new User({
+      name: fullName || '',
+      email: email.toLowerCase().trim(),
+      mobile: mobile || '',
+      password: hashed,
+      status: 'active',
+    });
+
+    await user.save();
+
+    return NextResponse.json({ success: true, data: mapUser(user) }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return NextResponse.json({ success: false, message: 'Failed to create user', error: error.message }, { status: 500 });
   }
 });

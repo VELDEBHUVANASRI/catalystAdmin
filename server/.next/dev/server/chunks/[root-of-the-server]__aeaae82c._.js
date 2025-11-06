@@ -99,19 +99,32 @@ if (!cached) {
 }
 async function dbConnect() {
     try {
+        // Add timeout to prevent hanging connections
+        const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('Database connection timeout')), 30000));
         // Return cached connection if already connected and ready
         if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1) {
-            // Verify we're connected to the correct database
-            if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
-                console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
-                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
-                cached.conn = null;
-                cached.promise = null;
-            } else {
-                // Verify connection is actually ready by checking readyState
-                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1 && __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db) {
+            try {
+                // Test the connection is actually responsive
+                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db.admin().ping();
+                // Verify we're connected to the correct database
+                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
+                    console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                    cached.conn = null;
+                    cached.promise = null;
+                } else {
+                    // Connection is verified working and to correct database
                     return __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"];
                 }
+            } catch (error) {
+                console.warn('⚠️ Existing connection appears stale, reconnecting...', error);
+                try {
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                } catch (e) {
+                    console.error('Failed to cleanly disconnect:', e);
+                }
+                cached.conn = null;
+                cached.promise = null;
             }
         }
         // Return existing promise if connection is in progress
@@ -243,7 +256,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors
 const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["withCORS"])(async ()=>{
     try {
         await (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"])();
-        const collection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_users');
+        const collection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_user');
         const docs = await collection.find({}).sort({
             blockedAt: -1,
             updatedAt: -1,
@@ -251,7 +264,8 @@ const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
         }).limit(200).toArray();
         const data = docs.map((doc)=>({
                 id: doc.userId?.toString() || doc._id?.toString() || '',
-                userId: doc.userId?.toString() || '',
+                _id: doc.userId?.toString() || doc._id?.toString() || '',
+                userId: doc.userId?.toString() || doc._id?.toString() || '',
                 name: doc.name || '',
                 email: doc.email || '',
                 mobile: doc.mobile || doc.phone || '',

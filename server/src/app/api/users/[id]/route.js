@@ -46,7 +46,7 @@ const formatUser = (user) => {
     id: user._id.toString(),
     fullName: readField(user, 'name') || nested(['fullName', 'firstName', 'displayName']),
     email: readField(user, 'email'),
-    mobileNumber: readField(user, 'mobile') || nested(['phone', 'phoneNumber', 'contactNumber']),
+    mobile: readField(user, 'mobile') || nested(['phone', 'phoneNumber', 'contactNumber']),
     address: nested(['address', 'streetAddress', 'addressLine', 'location']),
     city: readField(user, 'city') || nested(['town', 'locality']),
     state: readField(user, 'state') || nested(['province', 'region']),
@@ -165,7 +165,18 @@ export const GET = withCORS(async (_request, { params }) => {
 export const PUT = withCORS(async (request, { params }) => {
   try {
     await dbConnect();
-    const { id } = params;
+    
+    // Get ID from params or URL
+    let id = params?.id;
+    if (!id) {
+      try {
+        const pathname = new URL(request.url).pathname;
+        const matches = pathname.match(/\/api\/users\/([^\/]+)/);
+        id = matches ? decodeURIComponent(matches[1]) : null;
+      } catch (e) {
+        console.error('Error extracting ID from URL:', e);
+      }
+    }
 
     if (!id) {
       return NextResponse.json(
@@ -211,9 +222,187 @@ export const PUT = withCORS(async (request, { params }) => {
       update.mobile = normalizeString(payload.mobileNumber);
     }
 
+    // If the caller wants to mark user as blocked, move the user to `blockeduser` collection
+    if (update.status === 'blocked') {
+      // fetch the full user document before removal
+      const existingUser = await User.findById(id).lean();
+      if (!existingUser) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'User not found',
+          },
+          { status: 404 }
+        );
+      }
+
+      try {
+        const blockedCollection = mongoose.connection.collection('blocked_user');
+        const blockedAt = update.blockedAt || now;
+
+        await blockedCollection.updateOne(
+          { userId: existingUser._id },
+          {
+            $set: {
+              userId: existingUser._id,
+              name: existingUser.name || existingUser.fullName || '',
+              email: existingUser.email || '',
+              mobile: existingUser.mobile || existingUser.mobileNumber || '',
+              blockedAt,
+              createdAt: existingUser.createdAt || now,
+              updatedAt: now,
+            },
+          },
+          { upsert: true }
+        );
+
+        // Remove from users collection
+        await User.deleteOne({ _id: existingUser._id });
+      } catch (err) {
+        console.error('Failed to move user to blockeduser collection', err);
+        return NextResponse.json(
+          { success: false, message: 'Failed to block user' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            user: formatUser(existingUser),
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // For non-block status updates, apply the update normally
     const user = await User.findByIdAndUpdate(id, update, { new: true });
 
+    // If the user isn't present in users collection but we're trying to set them active (unblock),
+    // attempt to restore from the blocked_user snapshot.
     if (!user) {
+      if (update.status && update.status !== 'blocked') {
+        try {
+          const blockedCollection = mongoose.connection.collection('blocked_user');
+
+          // Try to convert the ID to ObjectId
+          let objectId;
+          try {
+            objectId = mongoose.Types.ObjectId(id);
+          } catch (e) {
+            objectId = null;
+          }
+
+          // Look for the blocked user document using various ID combinations
+          const blockedDoc = await blockedCollection.findOne({
+            $or: [
+              ...(objectId ? [{ userId: objectId }, { _id: objectId }] : []),
+              { userId: id },
+              { _id: id }
+            ]
+          });
+
+          if (blockedDoc) {
+            // Ensure we're connected to the wedding database
+            if (mongoose.connection.name !== 'wedding') {
+              console.warn('Connecting to wedding database...');
+              await mongoose.connection.useDb('wedding');
+            }
+
+            // Recreate the user document in users collection using snapshot
+            const userData = {
+              name: blockedDoc.name || '',
+              fullName: blockedDoc.name || '',
+              email: (blockedDoc.email || '').toLowerCase(),
+              mobile: blockedDoc.mobile || blockedDoc.phone || '',
+              status: update.status || 'active',
+              createdAt: blockedDoc.createdAt || now,
+              updatedAt: now,
+            };
+
+            // Insert new user document (preserve original _id if possible)
+            let restoredUser;
+            
+            // First try to convert userId to ObjectId if it exists
+            let userIdToUse;
+            if (blockedDoc.userId) {
+              try {
+                userIdToUse = typeof blockedDoc.userId === 'string' 
+                  ? mongoose.Types.ObjectId(blockedDoc.userId)
+                  : blockedDoc.userId;
+              } catch (e) {
+                userIdToUse = null;
+              }
+            }
+
+            // If we have a valid userId, try to restore with that ID
+            if (userIdToUse) {
+              try {
+                // First check if user already exists to avoid duplicates
+                const existingUser = await User.findOne({ _id: userIdToUse });
+                if (existingUser) {
+                  return NextResponse.json(
+                    {
+                      success: false,
+                      message: 'User already exists in users collection',
+                    },
+                    { status: 409 }
+                  );
+                }
+
+                restoredUser = await User.findOneAndUpdate(
+                  { _id: userIdToUse },
+                  { $set: userData },
+                  { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+              } catch (e) {
+                console.error('Failed to restore user with original ID', e);
+                // Will fall through to create below
+              }
+            }
+
+            // If we couldn't restore with the original ID, create a new user
+            if (!restoredUser) {
+              try {
+                restoredUser = await User.create(userData);
+              } catch (e) {
+                console.error('Failed to create new user during unblock', e);
+                return NextResponse.json(
+                  {
+                    success: false,
+                    message: 'Failed to create user during unblock operation',
+                  },
+                  { status: 500 }
+                );
+              }
+            }
+
+            // Remove snapshot from blocked_user collection and verify removal
+            try {
+              const result = await blockedCollection.deleteOne({ _id: blockedDoc._id });
+              if (result.deletedCount !== 1) {
+                console.warn('Blocked user document was not found during deletion');
+              }
+            } catch (e) {
+              console.error('Failed to delete blocked_user snapshot after restore', e);
+            }
+
+            return NextResponse.json(
+              {
+                success: true,
+                data: { user: formatUser(restoredUser.toObject ? restoredUser.toObject() : restoredUser) },
+              },
+              { status: 200 }
+            );
+          }
+        } catch (e) {
+          console.error('Error restoring blocked user', e);
+          // fallthrough to return not found below
+        }
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -223,30 +412,33 @@ export const PUT = withCORS(async (request, { params }) => {
       );
     }
 
-    if (update.status) {
+    // If status was changed away from blocked, ensure the blockeduser snapshot is removed
+    if (update.status && update.status !== 'blocked') {
       try {
-        const blockedCollection = mongoose.connection.collection('blocked_users');
+        const blockedCollection = mongoose.connection.collection('blocked_user');
+        
+        // Try multiple ID formats for deletion
+        const objectId = (() => {
+          try {
+            return mongoose.Types.ObjectId(id);
+          } catch (e) {
+            return null;
+          }
+        })();
 
-        if (update.status === 'blocked') {
-          await blockedCollection.updateOne(
-            { userId: user._id },
-            {
-              $set: {
-                userId: user._id,
-                name: user.name,
-                email: user.email,
-                mobile: user.mobile,
-                blockedAt: update.blockedAt || now,
-                updatedAt: now,
-              },
-            },
-            { upsert: true }
-          );
-        } else {
-          await blockedCollection.deleteOne({ userId: user._id });
+        const deleteResult = await blockedCollection.deleteOne({
+          $or: [
+            ...(objectId ? [{ userId: objectId }, { _id: objectId }] : []),
+            { userId: id },
+            { _id: id }
+          ]
+        });
+
+        if (deleteResult.deletedCount === 0) {
+          console.warn('No blocked user record found to remove');
         }
       } catch (error) {
-        console.error('Failed to sync blocked user record', error);
+        console.error('Failed to remove blockeduser record', error);
       }
     }
 

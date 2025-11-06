@@ -112,13 +112,55 @@
   color: #64748b;
 }
 
-.details-btn {
+.details-btn, .view-details-btn {
   border: 1px solid #cce5ff;
   color: #007acc;
   background: #e6f3ff;
   border-radius: 6px;
   padding: 6px 10px;
   cursor: pointer;
+}
+
+.view-details-btn:hover, .details-btn:hover {
+  background: #dceffd;
+}
+
+.block-user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.block-user-btn:disabled {
+  background: #fca5a5;
+  cursor: not-allowed;
+}
+
+/* Responsive improvements */
+.users-page-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.users-table-card {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.users-table tbody tr.user-row:hover {
+  background: #fbfdff;
+}
+
+.user-row td:last-child {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 

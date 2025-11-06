@@ -18,10 +18,20 @@ const normalize = (value) => {
   return String(value).trim();
 };
 
-export const GET = withCORS(async (_request, context) => {
+export const GET = withCORS(async (request, { params } = {}) => {
   try {
     await dbConnect();
-    const { id } = await context.params;
+    // Prefer params.id but fall back to parsing the URL to be robust
+    let id = params?.id;
+    if (!id) {
+      try {
+        const pathname = new URL(request.url).pathname;
+        const m = pathname.match(/\/api\/vendors\/(.+)$/);
+        id = m ? decodeURIComponent(m[1]) : '';
+      } catch (e) {
+        id = '';
+      }
+    }
 
     if (!id) {
       return NextResponse.json(
@@ -81,10 +91,20 @@ export const GET = withCORS(async (_request, context) => {
   }
 });
 
-export const PUT = withCORS(async (request, { params }) => {
+export const PUT = withCORS(async (request, { params } = {}) => {
   try {
     await dbConnect();
-    const { id } = params;
+    // Prefer params.id but fall back to parsing the URL to be robust
+    let id = params?.id;
+    if (!id) {
+      try {
+        const pathname = new URL(request.url).pathname;
+        const m = pathname.match(/\/api\/vendors\/(.+)$/);
+        id = m ? decodeURIComponent(m[1]) : '';
+      } catch (e) {
+        id = '';
+      }
+    }
 
     if (!id) {
       return NextResponse.json(
@@ -97,7 +117,116 @@ export const PUT = withCORS(async (request, { params }) => {
     }
 
     const payload = await request.json();
+    
+    // Validate payload
+    if (!payload || typeof payload !== 'object') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid request payload',
+        },
+        { status: 400 }
+      );
+    }
+
     const update = {};
+
+    // Update status if provided and valid
+    if (payload.status !== undefined) {
+      const normalizedStatus = normalize(payload.status).toLowerCase();
+      const status = statusAliases[normalizedStatus] || normalizedStatus;
+      
+      if (!allowedStatuses.includes(status)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}`,
+          },
+          { status: 400 }
+        );
+      }
+      
+      // Get current vendor status
+      const currentVendor = await Vendor.findById(id).lean();
+      if (!currentVendor) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Vendor not found',
+          },
+          { status: 404 }
+        );
+      }
+
+      // Don't allow re-approving already approved vendors
+      if (currentVendor.status === 'approved' && status === 'approved') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Vendor is already approved',
+          },
+          { status: 400 }
+        );
+      }
+
+      update.status = status;
+
+      // Clear rejection reason when approving
+      if (status === 'approved') {
+        update.rejectionReason = '';
+      }
+    }
+
+    // Handle rejection reason
+    if (payload.rejectionReason !== undefined) {
+      update.rejectionReason = normalize(payload.rejectionReason);
+    }
+
+    // Handle rejection
+    if (update.status === 'rejected' && !update.rejectionReason) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Rejection reason is required when rejecting a vendor',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Only update provided fields
+    const updatedVendor = await Vendor.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!updatedVendor) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Vendor not found',
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: updatedVendor._id.toString(),
+        businessName: updatedVendor.businessName,
+        contactName: updatedVendor.contactName || '',
+        category: updatedVendor.category,
+        email: updatedVendor.email,
+        phone: updatedVendor.phone,
+        city: updatedVendor.city,
+        status: updatedVendor.status,
+        role: updatedVendor.role || 'vendor',
+        rejectionReason: updatedVendor.rejectionReason || '',
+        createdAt: updatedVendor.createdAt,
+        updatedAt: updatedVendor.updatedAt,
+      },
+    });
     const hasRejectionReason = Object.prototype.hasOwnProperty.call(payload, 'rejectionReason');
     const normalizedRejectionReason = hasRejectionReason ? normalize(payload.rejectionReason) : '';
 

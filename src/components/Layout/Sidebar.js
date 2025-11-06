@@ -46,8 +46,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       label: 'User',
       icon: <MdPeople size={20} />,
       submenu: [
-        { label: 'User Details', path: '/user' },
         { label: 'Active Users', path: '/user/active' },
+        { label: 'Blocked Users', path: '/user/blocked' },
         { label: 'Create User', path: '/user/create' },
       ],
     },
@@ -118,15 +118,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                       {item.submenu.map((subitem, subindex) => (
                         <button
                           key={subindex}
-                          className={`submenu-item ${
-                            isActive(subitem.path) ? 'active' : ''
-                          }`}
+                          className={`submenu-item ${isActive(subitem.path) ? 'active' : ''}`}
                           onClick={() => {
                             navigate(subitem.path);
                             toggleSidebar();
                           }}
                         >
-                          <span className="submenu-bullet"></span>
                           {subitem.label}
                         </button>
                       ))}

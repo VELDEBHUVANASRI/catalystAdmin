@@ -99,19 +99,32 @@ if (!cached) {
 }
 async function dbConnect() {
     try {
+        // Add timeout to prevent hanging connections
+        const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('Database connection timeout')), 30000));
         // Return cached connection if already connected and ready
         if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1) {
-            // Verify we're connected to the correct database
-            if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
-                console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
-                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
-                cached.conn = null;
-                cached.promise = null;
-            } else {
-                // Verify connection is actually ready by checking readyState
-                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1 && __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db) {
+            try {
+                // Test the connection is actually responsive
+                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db.admin().ping();
+                // Verify we're connected to the correct database
+                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
+                    console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                    cached.conn = null;
+                    cached.promise = null;
+                } else {
+                    // Connection is verified working and to correct database
                     return __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"];
                 }
+            } catch (error) {
+                console.warn('⚠️ Existing connection appears stale, reconnecting...', error);
+                try {
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                } catch (e) {
+                    console.error('Failed to cleanly disconnect:', e);
+                }
+                cached.conn = null;
+                cached.promise = null;
             }
         }
         // Return existing promise if connection is in progress
@@ -332,7 +345,7 @@ const formatUser = (user)=>{
             'displayName'
         ]),
         email: readField(user, 'email'),
-        mobileNumber: readField(user, 'mobile') || nested([
+        mobile: readField(user, 'mobile') || nested([
             'phone',
             'phoneNumber',
             'contactNumber'
@@ -466,7 +479,17 @@ const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
 const PUT = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["withCORS"])(async (request, { params })=>{
     try {
         await (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"])();
-        const { id } = params;
+        // Get ID from params or URL
+        let id = params?.id;
+        if (!id) {
+            try {
+                const pathname = new URL(request.url).pathname;
+                const matches = pathname.match(/\/api\/users\/([^\/]+)/);
+                id = matches ? decodeURIComponent(matches[1]) : null;
+            } catch (e) {
+                console.error('Error extracting ID from URL:', e);
+            }
+        }
         if (!id) {
             return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
                 success: false,
@@ -501,10 +524,189 @@ const PUT = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
         if (payload.mobileNumber !== undefined) {
             update.mobile = normalizeString(payload.mobileNumber);
         }
+        // If the caller wants to mark user as blocked, move the user to `blockeduser` collection
+        if (update.status === 'blocked') {
+            // fetch the full user document before removal
+            const existingUser = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].findById(id).lean();
+            if (!existingUser) {
+                return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    success: false,
+                    message: 'User not found'
+                }, {
+                    status: 404
+                });
+            }
+            try {
+                const blockedCollection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_user');
+                const blockedAt = update.blockedAt || now;
+                await blockedCollection.updateOne({
+                    userId: existingUser._id
+                }, {
+                    $set: {
+                        userId: existingUser._id,
+                        name: existingUser.name || existingUser.fullName || '',
+                        email: existingUser.email || '',
+                        mobile: existingUser.mobile || existingUser.mobileNumber || '',
+                        blockedAt,
+                        createdAt: existingUser.createdAt || now,
+                        updatedAt: now
+                    }
+                }, {
+                    upsert: true
+                });
+                // Remove from users collection
+                await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].deleteOne({
+                    _id: existingUser._id
+                });
+            } catch (err) {
+                console.error('Failed to move user to blockeduser collection', err);
+                return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                    success: false,
+                    message: 'Failed to block user'
+                }, {
+                    status: 500
+                });
+            }
+            return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                success: true,
+                data: {
+                    user: formatUser(existingUser)
+                }
+            }, {
+                status: 200
+            });
+        }
+        // For non-block status updates, apply the update normally
         const user = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].findByIdAndUpdate(id, update, {
             new: true
         });
+        // If the user isn't present in users collection but we're trying to set them active (unblock),
+        // attempt to restore from the blocked_user snapshot.
         if (!user) {
+            if (update.status && update.status !== 'blocked') {
+                try {
+                    const blockedCollection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_user');
+                    // Try to convert the ID to ObjectId
+                    let objectId;
+                    try {
+                        objectId = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].Types.ObjectId(id);
+                    } catch (e) {
+                        objectId = null;
+                    }
+                    // Look for the blocked user document using various ID combinations
+                    const blockedDoc = await blockedCollection.findOne({
+                        $or: [
+                            ...objectId ? [
+                                {
+                                    userId: objectId
+                                },
+                                {
+                                    _id: objectId
+                                }
+                            ] : [],
+                            {
+                                userId: id
+                            },
+                            {
+                                _id: id
+                            }
+                        ]
+                    });
+                    if (blockedDoc) {
+                        // Ensure we're connected to the wedding database
+                        if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
+                            console.warn('Connecting to wedding database...');
+                            await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.useDb('wedding');
+                        }
+                        // Recreate the user document in users collection using snapshot
+                        const userData = {
+                            name: blockedDoc.name || '',
+                            fullName: blockedDoc.name || '',
+                            email: (blockedDoc.email || '').toLowerCase(),
+                            mobile: blockedDoc.mobile || blockedDoc.phone || '',
+                            status: update.status || 'active',
+                            createdAt: blockedDoc.createdAt || now,
+                            updatedAt: now
+                        };
+                        // Insert new user document (preserve original _id if possible)
+                        let restoredUser;
+                        // First try to convert userId to ObjectId if it exists
+                        let userIdToUse;
+                        if (blockedDoc.userId) {
+                            try {
+                                userIdToUse = typeof blockedDoc.userId === 'string' ? __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].Types.ObjectId(blockedDoc.userId) : blockedDoc.userId;
+                            } catch (e) {
+                                userIdToUse = null;
+                            }
+                        }
+                        // If we have a valid userId, try to restore with that ID
+                        if (userIdToUse) {
+                            try {
+                                // First check if user already exists to avoid duplicates
+                                const existingUser = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].findOne({
+                                    _id: userIdToUse
+                                });
+                                if (existingUser) {
+                                    return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                                        success: false,
+                                        message: 'User already exists in users collection'
+                                    }, {
+                                        status: 409
+                                    });
+                                }
+                                restoredUser = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].findOneAndUpdate({
+                                    _id: userIdToUse
+                                }, {
+                                    $set: userData
+                                }, {
+                                    upsert: true,
+                                    new: true,
+                                    setDefaultsOnInsert: true
+                                });
+                            } catch (e) {
+                                console.error('Failed to restore user with original ID', e);
+                            // Will fall through to create below
+                            }
+                        }
+                        // If we couldn't restore with the original ID, create a new user
+                        if (!restoredUser) {
+                            try {
+                                restoredUser = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].create(userData);
+                            } catch (e) {
+                                console.error('Failed to create new user during unblock', e);
+                                return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                                    success: false,
+                                    message: 'Failed to create user during unblock operation'
+                                }, {
+                                    status: 500
+                                });
+                            }
+                        }
+                        // Remove snapshot from blocked_user collection and verify removal
+                        try {
+                            const result = await blockedCollection.deleteOne({
+                                _id: blockedDoc._id
+                            });
+                            if (result.deletedCount !== 1) {
+                                console.warn('Blocked user document was not found during deletion');
+                            }
+                        } catch (e) {
+                            console.error('Failed to delete blocked_user snapshot after restore', e);
+                        }
+                        return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                            success: true,
+                            data: {
+                                user: formatUser(restoredUser.toObject ? restoredUser.toObject() : restoredUser)
+                            }
+                        }, {
+                            status: 200
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error restoring blocked user', e);
+                // fallthrough to return not found below
+                }
+            }
             return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
                 success: false,
                 message: 'User not found'
@@ -512,31 +714,41 @@ const PUT = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
                 status: 404
             });
         }
-        if (update.status) {
+        // If status was changed away from blocked, ensure the blockeduser snapshot is removed
+        if (update.status && update.status !== 'blocked') {
             try {
-                const blockedCollection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_users');
-                if (update.status === 'blocked') {
-                    await blockedCollection.updateOne({
-                        userId: user._id
-                    }, {
-                        $set: {
-                            userId: user._id,
-                            name: user.name,
-                            email: user.email,
-                            mobile: user.mobile,
-                            blockedAt: update.blockedAt || now,
-                            updatedAt: now
+                const blockedCollection = __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.collection('blocked_user');
+                // Try multiple ID formats for deletion
+                const objectId = (()=>{
+                    try {
+                        return __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].Types.ObjectId(id);
+                    } catch (e) {
+                        return null;
+                    }
+                })();
+                const deleteResult = await blockedCollection.deleteOne({
+                    $or: [
+                        ...objectId ? [
+                            {
+                                userId: objectId
+                            },
+                            {
+                                _id: objectId
+                            }
+                        ] : [],
+                        {
+                            userId: id
+                        },
+                        {
+                            _id: id
                         }
-                    }, {
-                        upsert: true
-                    });
-                } else {
-                    await blockedCollection.deleteOne({
-                        userId: user._id
-                    });
+                    ]
+                });
+                if (deleteResult.deletedCount === 0) {
+                    console.warn('No blocked user record found to remove');
                 }
             } catch (error) {
-                console.error('Failed to sync blocked user record', error);
+                console.error('Failed to remove blockeduser record', error);
             }
         }
         return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({

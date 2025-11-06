@@ -99,19 +99,32 @@ if (!cached) {
 }
 async function dbConnect() {
     try {
+        // Add timeout to prevent hanging connections
+        const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('Database connection timeout')), 30000));
         // Return cached connection if already connected and ready
         if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1) {
-            // Verify we're connected to the correct database
-            if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
-                console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
-                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
-                cached.conn = null;
-                cached.promise = null;
-            } else {
-                // Verify connection is actually ready by checking readyState
-                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1 && __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db) {
+            try {
+                // Test the connection is actually responsive
+                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db.admin().ping();
+                // Verify we're connected to the correct database
+                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
+                    console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                    cached.conn = null;
+                    cached.promise = null;
+                } else {
+                    // Connection is verified working and to correct database
                     return __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"];
                 }
+            } catch (error) {
+                console.warn('⚠️ Existing connection appears stale, reconnecting...', error);
+                try {
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                } catch (e) {
+                    console.error('Failed to cleanly disconnect:', e);
+                }
+                cached.conn = null;
+                cached.promise = null;
             }
         }
         // Return existing promise if connection is in progress
@@ -276,7 +289,9 @@ function withCORS(handler) {
 
 __turbopack_context__.s([
     "GET",
-    ()=>GET
+    ()=>GET,
+    "POST",
+    ()=>POST
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/node_modules/next/server.js [app-route] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/server/src/lib/db.js [app-route] (ecmascript)");
@@ -313,12 +328,17 @@ const mapUser = (user)=>({
         id: user._id.toString(),
         fullName: user.name || user.fullName || '',
         email: user.email || '',
+        // send both `mobile` and `mobileNumber` for compatibility
+        mobile: user.mobile || user.phone || '',
         mobileNumber: user.mobile || user.phone || '',
         status: user.status || 'active',
         address: user.address || '',
         city: user.city || '',
+        // include both createdAt/updatedAt and friendly names used by the frontend
         createdAt: user.createdAt || null,
-        updatedAt: user.updatedAt || null
+        updatedAt: user.updatedAt || null,
+        joinedDate: user.createdAt || null,
+        lastActive: user.updatedAt || null
     });
 const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["withCORS"])(async (request)=>{
     try {
@@ -377,6 +397,60 @@ const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
         return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             success: false,
             message: 'Failed to load users'
+        }, {
+            status: 500
+        });
+    }
+});
+const POST = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$cors$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["withCORS"])(async (request)=>{
+    try {
+        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"])();
+        const body = await request.json();
+        const { fullName, email, mobile, password } = body || {};
+        if (!email || !password) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                success: false,
+                message: 'Email and password are required'
+            }, {
+                status: 400
+            });
+        }
+        // Check existing user
+        const existing = await __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].findOne({
+            email: email.toLowerCase().trim()
+        }).lean();
+        if (existing) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                success: false,
+                message: 'User with this email already exists'
+            }, {
+                status: 409
+            });
+        }
+        // Hash password using bcryptjs
+        const bcrypt = await __turbopack_context__.A("[project]/server/node_modules/bcryptjs/index.js [app-route] (ecmascript, async loader)");
+        const salt = bcrypt.genSaltSync(10);
+        const hashed = bcrypt.hashSync(password, salt);
+        const user = new __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f$models$2f$User$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"]({
+            name: fullName || '',
+            email: email.toLowerCase().trim(),
+            mobile: mobile || '',
+            password: hashed,
+            status: 'active'
+        });
+        await user.save();
+        return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: true,
+            data: mapUser(user)
+        }, {
+            status: 201
+        });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+            success: false,
+            message: 'Failed to create user',
+            error: error.message
         }, {
             status: 500
         });

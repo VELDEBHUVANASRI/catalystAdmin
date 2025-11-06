@@ -99,19 +99,32 @@ if (!cached) {
 }
 async function dbConnect() {
     try {
+        // Add timeout to prevent hanging connections
+        const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('Database connection timeout')), 30000));
         // Return cached connection if already connected and ready
         if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1) {
-            // Verify we're connected to the correct database
-            if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
-                console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
-                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
-                cached.conn = null;
-                cached.promise = null;
-            } else {
-                // Verify connection is actually ready by checking readyState
-                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.readyState === 1 && __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db) {
+            try {
+                // Test the connection is actually responsive
+                await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.db.admin().ping();
+                // Verify we're connected to the correct database
+                if (__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name !== 'wedding') {
+                    console.warn(`⚠️ Currently connected to '${__TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].connection.name}' database, reconnecting to 'wedding' database...`);
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                    cached.conn = null;
+                    cached.promise = null;
+                } else {
+                    // Connection is verified working and to correct database
                     return __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"];
                 }
+            } catch (error) {
+                console.warn('⚠️ Existing connection appears stale, reconnecting...', error);
+                try {
+                    await __TURBOPACK__imported__module__$5b$externals$5d2f$mongoose__$5b$external$5d$__$28$mongoose$2c$__cjs$29$__["default"].disconnect();
+                } catch (e) {
+                    console.error('Failed to cleanly disconnect:', e);
+                }
+                cached.conn = null;
+                cached.promise = null;
             }
         }
         // Return existing promise if connection is in progress
@@ -340,12 +353,17 @@ const GET = (0, __TURBOPACK__imported__module__$5b$project$5d2f$server$2f$src$2f
         const status = searchParams.get('status');
         const priority = searchParams.get('priority');
         const search = searchParams.get('search');
+        const userId = searchParams.get('userId');
         const filters = {};
         if (status && status !== 'all') {
             filters.status = status.toLowerCase();
         }
         if (priority) {
             filters.priority = priority.toLowerCase();
+        }
+        if (userId) {
+            // allow filtering tickets for a specific user
+            filters.userId = userId;
         }
         if (search) {
             filters.$or = [

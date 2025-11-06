@@ -48,6 +48,142 @@
   background: linear-gradient(135deg, #4da6ff 0%, #66b2ff 100%);
   border-radius: 12px;
   color: white;
+}
+
+/* Card Content Styles */
+.card-content {
+  flex: 1;
+}
+
+.card-title {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 4px;
+}
+
+.card-count {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.subscription-table-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.table-header h3 {
+  font-size: 20px;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.filter-container {
+  position: relative;
+  width: 300px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.filter-input:focus {
+  border-color: #4da6ff;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.subscription-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 12px;
+}
+
+.subscription-table th {
+  background: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  text-align: left;
+  padding: 16px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.subscription-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e9ecef;
+  color: #495057;
+}
+
+.subscription-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.status-badge, .payment-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.active {
+  background-color: #e6f7e6;
+  color: #28a745;
+}
+
+.status-badge.expired {
+  background-color: #ffe6e6;
+  color: #dc3545;
+}
+
+.payment-badge.paid {
+  background-color: #e6f7e6;
+  color: #28a745;
+}
+
+.payment-badge.pending {
+  background-color: #fff3cd;
+  color: #ffc107;
+}
+
+.payment-badge.failed {
+  background-color: #ffe6e6;
+  color: #dc3545;
+}
+
+.no-data {
+  text-align: center;
+  color: #6c757d;
+  padding: 32px;
+  font-style: italic;
   flex-shrink: 0;
 }
 

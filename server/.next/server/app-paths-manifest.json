@@ -1,7 +1,0 @@
-{
-  "/api/vendors/rejected/route": "app/api/vendors/rejected/route.js",
-  "/api/vendors/pending/route": "app/api/vendors/pending/route.js",
-  "/api/users/active/route": "app/api/users/active/route.js",
-  "/api/vendors/accepted/route": "app/api/vendors/accepted/route.js",
-  "/api/users/blocked/route": "app/api/users/blocked/route.js"
-}

@@ -9,9 +9,10 @@ export const GET = withCORS(async (request) => {
 
     const url = new URL(request.url);
     const searchParams = url.searchParams;
-    const status = searchParams.get('status');
-    const priority = searchParams.get('priority');
-    const search = searchParams.get('search');
+  const status = searchParams.get('status');
+  const priority = searchParams.get('priority');
+  const search = searchParams.get('search');
+  const userId = searchParams.get('userId');
 
     const filters = {};
     if (status && status !== 'all') {
@@ -19,6 +20,10 @@ export const GET = withCORS(async (request) => {
     }
     if (priority) {
       filters.priority = priority.toLowerCase();
+    }
+    if (userId) {
+      // allow filtering tickets for a specific user
+      filters.userId = userId;
     }
     if (search) {
       filters.$or = [

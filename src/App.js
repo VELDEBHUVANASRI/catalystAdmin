@@ -28,6 +28,7 @@ import User from './pages/User/User';
 import ActiveUsersPage from './pages/User/ActiveUsersPage';
 import UserDetailsPage from './pages/User/UserDetailsPage';
 import UserRegistrationPage from './pages/User/UserRegistrationPage';
+import BlockedUsersPage from './pages/User/BlockedUsersPage';
 
 // Finance Pages
 import Finance from './pages/Finance/Finance';
@@ -243,6 +244,17 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <UserRegistrationPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/user/blocked"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <BlockedUsersPage />
               </Layout>
             </ProtectedRoute>
           }
