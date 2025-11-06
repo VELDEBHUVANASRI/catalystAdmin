@@ -22,11 +22,44 @@ const BlockedUsersPage = () => {
   };
 
   
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(buildUrl());
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch blocked users');
+      }
+
+      setUsers(data.data.map(user => ({
+        id: user.userId || user._id || user.id,
+        fullName: user.name || user.fullName || '',
+        email: user.email || '',
+        mobile: user.mobile || user.mobileNumber || '',
+        blockedDate: user.blockedAt || user.joinedDate || null,
+        joinedDate: user.blockedAt ? new Date(user.blockedAt).toLocaleDateString() : '',
+      })));
+    } catch (err) {
+      console.error('Error fetching blocked users:', err);
+      setError(err.message || 'Failed to fetch blocked users');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-  
+    fetchUsers();
 
     // Listen for 'user-blocked' events to refresh the list automatically
-    const handler = () => ();
+    const handler = () => fetchUsers();
     window.addEventListener('user-blocked', handler);
     return () => {
       window.removeEventListener('user-blocked', handler);
@@ -42,48 +75,52 @@ const BlockedUsersPage = () => {
   }, [users, emailFilter]);
 
   const handleUnblock = async (userId) => {
-    if (!window.confirm('Unblock this user?')) return;
+    if (!window.confirm('Are you sure you want to unblock this user?')) return;
+    
     try {
-      // First try to fetch the user from blocked_users to get the most up-to-date ID
-      const fetchRes = await fetch(`${API_BASE_URL}/api/users/blocked`);
-      const fetchBody = await fetchRes.json();
-      const blockedUser = fetchBody.data?.find(u => u.id === userId || u._id === userId || u.userId === userId);
+      setError(''); // Clear any existing error
+      setLoading(true); // Show loading state
       
-      if (!blockedUser) {
-        throw new Error('User no longer appears to be blocked');
-      }
-
-      // Use the most reliable ID we have
-      const finalUserId = blockedUser.userId || blockedUser._id || blockedUser.id;
-      
-      const res = await fetch(`${API_BASE_URL}/api/users/${finalUserId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status: 'active',
-          source: 'blocked_user' // Add source to help backend identify the operation
-        }),
+      // Call unblock endpoint
+      const res = await fetch(`${API_BASE_URL}/api/users/unblock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ userId }),
       });
 
+      // Parse response even if not ok to get error message
+      const body = await res.json().catch(() => ({}));
+      
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.message || `Failed to unblock user (${res.status})`);
+        const errorMessage = body?.message || `Failed to unblock user (HTTP ${res.status})`;
+        // If we get a 404, the user might already be unblocked
+        if (res.status === 404) {
+          // Refresh the list to verify
+          await fetchUsers();
+          return;
+        }
+        throw new Error(errorMessage);
       }
-
-      const body = await res.json();
+      
       if (!body?.success) {
-        throw new Error(body?.message || 'Failed to unblock user');
+        throw new Error(body?.message || 'Server reported failure to unblock user');
       }
 
-      // remove from list
+      // On success, remove user from the list
       setUsers(prev => prev.filter(u => u.id !== userId));
-
-      // Show success message
-      setError(''); // Clear any existing error
-      // You could add a success message state if you want to show positive feedback
+      
+      // Show success feedback
+      setError('User successfully unblocked');
+      setTimeout(() => setError(''), 3000); // Clear success message after 3 seconds
+      
     } catch (err) {
-      console.error('Failed to unblock user', err);
-      setError(err.message || 'Failed to unblock user');
+      console.error('Failed to unblock user:', err);
+      setError(err.message || 'Failed to unblock user. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -115,7 +152,11 @@ const BlockedUsersPage = () => {
           <input type="text" placeholder="Filter by email" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} />
         </div>
 
-    
+        <div className="filter-actions">
+          <button onClick={fetchUsers} className="apply-btn">Apply</button>
+          <button onClick={() => { setEmailFilter(''); setDateFrom(''); setDateTo(''); fetchUsers(); }} className="reset-btn">Reset</button>
+        </div>
+      </div>
 
       {error && <div className="error-message">{error}</div>}
 
